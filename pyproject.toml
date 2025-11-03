@@ -1,0 +1,21 @@
+[project]
+name = "vector-search-test"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=0.70.0",
+    "dotenv>=0.9.9",
+    "matplotlib>=3.10.7",
+    "mistralai>=1.9.11",
+    "networkx>=3.5",
+    "node2vec>=0.4.3",
+    "numpy>=2.3.3",
+    "openai>=2.4.0",
+    "pandas>=2.3.3",
+    "pyvis>=0.3.2",
+    "scikit-learn>=1.7.2",
+    "sentence-transformers>=5.1.1",
+    "transformers==4.56.0",
+]
