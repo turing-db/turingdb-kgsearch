@@ -251,3 +251,119 @@ def build_smart_enriched_embeddings(G, model):
     )
 
     return node_vectors, node_texts
+
+
+def build_sparse_embeddings(G, max_features=500, ngram_range=(1, 2)):
+    """
+    Build sparse (keyword-based) embeddings using TF-IDF.
+
+    Args:
+        G: NetworkX graph
+        max_features: Maximum vocabulary size
+        ngram_range: Tuple of (min_n, max_n) for n-grams
+
+    Returns:
+        Tuple of (sparse_vectors, node_texts, sparse_vectorizer)
+        - sparse_vectors: Dictionary of {node_id: sparse_vector}
+        - node_texts: Dictionary of {node_id: text}
+        - sparse_vectorizer: Fitted TfidfVectorizer (needed for queries)
+    """
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
+    print("Building sparse index (TF-IDF)...")
+
+    # Extract text from graph (same as dense embeddings)
+    node_texts = {}
+    texts_to_encode = []
+    node_ids = []
+
+    for node_id, data in G.nodes(data=True):
+        node_type = data.get("type", "")
+
+        if node_type == "control":
+            text = data.get("statement", "")
+        elif node_type == "topic":
+            text = f"Topic: {data.get('name', '')}"
+        elif node_type == "domain":
+            text = f"Domain: {data.get('name', '')}"
+        elif node_type == "standard":
+            text = f"{data.get('standard', '')} {data.get('reference', '')}"
+        else:
+            text = str(node_id)
+
+        if text and text.strip():
+            texts_to_encode.append(text)
+            node_ids.append(node_id)
+            node_texts[node_id] = text
+
+    # Create TF-IDF vectorizer
+    sparse_vectorizer = TfidfVectorizer(
+        max_features=max_features,
+        ngram_range=ngram_range,
+        lowercase=True,
+        stop_words="english",
+        min_df=1,
+        token_pattern=r"\b[a-zA-Z][a-zA-Z]+\b",
+    )
+
+    # Build sparse vectors
+    sparse_matrix = sparse_vectorizer.fit_transform(texts_to_encode)
+
+    # Store as dictionary
+    sparse_vectors = {}
+    for i, node_id in enumerate(node_ids):
+        sparse_vectors[node_id] = sparse_matrix[i]
+
+    print(f"✓ Sparse index built: {len(sparse_vectors)} vectors")
+    print(f"  Vocabulary size: {len(sparse_vectorizer.vocabulary_)}")
+
+    # Show sample terms
+    feature_names = sparse_vectorizer.get_feature_names_out()
+    print(f"  Sample terms: {list(feature_names[:20])}")
+
+    return sparse_vectors, node_texts, sparse_vectorizer
+
+
+def build_node2vec_embeddings(G, dimensions=128, walk_length=10, num_walks=80):
+    """
+    Build structural embeddings using Node2Vec.
+
+    Args:
+        G: NetworkX graph
+        dimensions: Embedding dimension (match text embeddings)
+        walk_length: Length of random walks
+        num_walks: Number of walks per node
+
+    Returns:
+        Dictionary of {node_id: structural_vector}
+    """
+    from node2vec import Node2Vec
+
+    print("Training Node2Vec on graph structure...")
+
+    # Create Node2Vec model
+    node2vec = Node2Vec(
+        G,
+        dimensions=dimensions,
+        walk_length=walk_length,
+        num_walks=num_walks,
+        p=1,
+        q=1,
+        workers=2,
+        quiet=True,
+    )
+
+    # Train
+    n2v_model = node2vec.fit(window=5, min_count=1, batch_words=4)
+
+    # Extract vectors
+    structural_vectors = {}
+    for node in G.nodes():
+        try:
+            structural_vectors[str(node)] = n2v_model.wv[str(node)]
+        except KeyError:
+            pass
+
+    print(f"✓ Node2Vec trained: {len(structural_vectors)} structural vectors")
+
+    return structural_vectors
