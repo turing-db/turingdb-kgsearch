@@ -176,8 +176,7 @@ def visualize_graph_with_pyvis(
         print(f"  Open {output_file} in your browser to view")
 
 
-# Update old function to use the new one
-def visualize_subgraph_interactive(
+def extract_and_visualize_subgraph(
     query, G, search_func, search_params, k=2, hops=1, output_file="graph.html"
 ):
     """Get subgraph and visualize it."""
