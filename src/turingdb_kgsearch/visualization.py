@@ -1,5 +1,5 @@
 from pyvis.network import Network
-from turingdb_graphrag.subgraph import get_subgraph_around_query
+from turingdb_kgsearch.subgraph import get_subgraph_around_query
 
 
 def visualize_graph_with_pyvis(

@@ -1,6 +1,6 @@
 import networkx as nx
 import numpy as np
-from turingdb_graphrag.search import hybrid_search
+from turingdb_kgsearch.search import hybrid_search
 
 
 def get_hybrid_filtered_neighborhood(
