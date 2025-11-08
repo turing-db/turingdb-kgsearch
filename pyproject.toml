@@ -1,5 +1,5 @@
 [project]
-name = "turingdb-graphrag"
+name = "turingdb-kgsearch"
 version = "0.1.0"
 description = "Vector search and graph RAG utilities using TuringDB"
 readme = "README.md"
