@@ -12,6 +12,7 @@ from scipy.sparse import (
     save_npz as scipy_save_npz,
     load_npz as scipy_load_npz,
 )
+import pickle
 
 
 # ============================================================================
@@ -20,7 +21,11 @@ from scipy.sparse import (
 
 
 def save_embeddings(
-    node_vectors, node_texts=None, filepath="embeddings.npz", embedding_type="dense"
+    node_vectors,
+    node_texts=None,
+    filepath="embeddings.npz",
+    embedding_type="dense",
+    vectorizer=None,
 ):
     """
     Save embeddings in NumPy's compressed format.
@@ -32,6 +37,7 @@ def save_embeddings(
         node_texts: Dictionary of {node_id: text} (optional, can be None for structural embeddings)
         filepath: Path to save file (should end with .npz)
         embedding_type: Type of embedding ('dense', 'sparse', 'node2vec', 'structural')
+        vectorizer: Optional vectorizer object (e.g., TfidfVectorizer for sparse embeddings)
 
     Example:
         # Dense/sparse embeddings with text
@@ -40,8 +46,9 @@ def save_embeddings(
         # Node2Vec embeddings without text
         save_embeddings(structural_vectors, None, "embeddings/node2vec.npz", "node2vec")
 
-        # Sparse TF-IDF embeddings
-        save_embeddings(sparse_vectors, node_texts, "embeddings/sparse.npz", "sparse")
+        # Sparse TF-IDF embeddings with vectorizer
+        save_embeddings(sparse_vectors, node_texts, "embeddings/sparse.npz", "sparse",
+                       vectorizer=sparse_vectorizer)
     """
     Path(filepath).parent.mkdir(parents=True, exist_ok=True)
 
@@ -87,6 +94,14 @@ def save_embeddings(
         texts = np.array([node_texts[nid] for nid in node_ids])
         save_data["texts"] = texts
 
+    # Save vectorizer if provided (for sparse embeddings)
+    if vectorizer is not None:
+        vectorizer_filepath = filepath.replace(".npz", "_vectorizer.pkl")
+        with open(vectorizer_filepath, "wb") as f:
+            pickle.dump(vectorizer, f)
+        save_data["vectorizer_filepath"] = vectorizer_filepath
+        print(f"  - Vectorizer saved to: {vectorizer_filepath}")
+
     # Save with compression
     np.savez_compressed(filepath, **save_data)
 
@@ -96,6 +111,7 @@ def save_embeddings(
     print(f"  - {len(node_vectors)} vectors")
     print(f"  - Vector dimension: {vector_dim}")
     print(f"  - Has texts: {'Yes' if node_texts is not None else 'No'}")
+    print(f"  - Has vectorizer: {'Yes' if vectorizer is not None else 'No'}")
     print(f"  - File size: {Path(filepath).stat().st_size / (1024*1024):.2f} MB")
     if is_sparse:
         print(f"  - Sparse file: {sparse_filepath}")
@@ -110,20 +126,21 @@ def load_embeddings(filepath="embeddings.npz"):
         filepath: Path to saved file
 
     Returns:
-        (node_vectors, node_texts, metadata) tuple
+        (node_vectors, node_texts, metadata, vectorizer) tuple
         - node_vectors: Dictionary of {node_id: vector}
         - node_texts: Dictionary of {node_id: text} or None if not available
         - metadata: Dictionary with 'embedding_type', 'is_sparse', and other info
+        - vectorizer: Vectorizer object (for sparse embeddings) or None
 
     Example:
         # Dense embeddings (with texts)
-        node_vectors, node_texts, meta = load_embeddings("embeddings/smart_embeddings.npz")
+        node_vectors, node_texts, meta, _ = load_embeddings("embeddings/smart_embeddings.npz")
 
         # Node2Vec embeddings (no texts)
-        structural_vectors, _, meta = load_embeddings("embeddings/node2vec.npz")
+        structural_vectors, _, meta, _ = load_embeddings("embeddings/node2vec.npz")
 
-        # Sparse embeddings
-        sparse_vectors, node_texts, meta = load_embeddings("embeddings/sparse.npz")
+        # Sparse embeddings (with vectorizer)
+        sparse_vectors, node_texts, meta, sparse_vectorizer = load_embeddings("embeddings/sparse.npz")
     """
     if not Path(filepath).exists():
         raise FileNotFoundError(f"Embeddings file not found: {filepath}")
@@ -157,6 +174,16 @@ def load_embeddings(filepath="embeddings.npz"):
         texts = data["texts"]
         node_texts = {nid: str(text) for nid, text in zip(node_ids, texts)}
 
+    # Load vectorizer if available
+    vectorizer = None
+    if "vectorizer_filepath" in data:
+        vectorizer_filepath = str(data["vectorizer_filepath"])
+        if Path(vectorizer_filepath).exists():
+            with open(vectorizer_filepath, "rb") as f:
+                vectorizer = pickle.load(f)
+        else:
+            print(f"  ⚠️  Vectorizer file not found: {vectorizer_filepath}")
+
     # Create metadata
     metadata = {
         "embedding_type": embedding_type,
@@ -164,6 +191,7 @@ def load_embeddings(filepath="embeddings.npz"):
         "num_vectors": len(node_vectors),
         "vector_dim": vector_dim,
         "has_texts": node_texts is not None,
+        "has_vectorizer": vectorizer is not None,
     }
 
     print(f"✓ Embeddings loaded from: {filepath}")
@@ -172,5 +200,6 @@ def load_embeddings(filepath="embeddings.npz"):
     print(f"  - {len(node_vectors)} vectors")
     print(f"  - Vector dimension: {vector_dim}")
     print(f"  - Has texts: {'Yes' if node_texts is not None else 'No'}")
+    print(f"  - Has vectorizer: {'Yes' if vectorizer is not None else 'No'}")
 
-    return node_vectors, node_texts, metadata
+    return node_vectors, node_texts, metadata, vectorizer
