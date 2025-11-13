@@ -40,6 +40,8 @@ def dense_search(query, node_vectors, node_texts, G, model, k=5, node_type=None)
             }
         )
 
+    print(f"dense results : {results}")
+
     # Filter by node type if specified
     if node_type is not None:
         results = [r for r in results if r["data"].get("type") == node_type]
@@ -88,6 +90,8 @@ def sparse_search(
                 "data": dict(G.nodes[node_id]),
             }
         )
+
+    print(f"sparse results : {results}")
 
     # Filter by node type if specified
     if node_type is not None:
@@ -180,9 +184,11 @@ def hybrid_search(
 
     combined = []
     for node_id in all_nodes:
-        d_score = dense_norm.get(node_id, 0.0)
-        s_score = sparse_norm.get(node_id, 0.0)
-        final_score = alpha * d_score + (1 - alpha) * s_score
+        d_score = dense_scores.get(node_id, 0.0)
+        s_score = sparse_scores.get(node_id, 0.0)
+        d_score_norm = dense_norm.get(node_id, 0.0)
+        s_score_norm = sparse_norm.get(node_id, 0.0)
+        final_score = alpha * d_score_norm + (1 - alpha) * s_score_norm
 
         combined.append(
             {
@@ -190,10 +196,14 @@ def hybrid_search(
                 "similarity": final_score,
                 "dense_score": d_score,
                 "sparse_score": s_score,
+                "dense_score_norm": d_score_norm,
+                "sparse_score_norm": s_score_norm,
                 "text": node_texts[node_id],
                 "data": dict(G.nodes[node_id]),
             }
         )
+
+    print(f"combined results : {combined}")
 
     # Sort and return top k
     combined.sort(key=lambda x: x["similarity"], reverse=True)
@@ -223,7 +233,7 @@ def compare_search_methods(
     model,
     k=5,
     alpha=0.7,
-    node_type="control",
+    node_type=None,
 ):
     """
     Compare dense, sparse, and hybrid search side-by-side.
@@ -247,6 +257,7 @@ def compare_search_methods(
     # 1. Dense only
     print("\n1. DENSE ONLY (Semantic):")
     print("-" * 80)
+    print("HERE")
     results_dense = dense_search(
         query, node_vectors, node_texts, G, model, k, node_type
     )
@@ -279,5 +290,5 @@ def compare_search_methods(
     )
     for i, r in enumerate(results_hybrid[:3], 1):
         print(
-            f"{i}. {r['similarity']:.3f} (D:{r['dense_score']:.2f}/S:{r['sparse_score']:.2f}) | {r['text'][:100]}..."
+            f"{i}. {r['similarity']:.3f} (raw: D:{r['dense_score']:.2f}/S:{r['sparse_score']:.2f}) | (norm: D:{r['dense_score_norm']:.2f}/S:{r['sparse_score_norm']:.2f}) | {r['text'][:100]}..."
         )
