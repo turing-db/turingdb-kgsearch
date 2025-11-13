@@ -2912,7 +2912,7 @@ dev = [
 ]
 
 [[package]]
-name = "turingdb-graphrag"
+name = "turingdb-kgsearch"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
