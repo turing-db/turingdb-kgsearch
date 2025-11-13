@@ -104,21 +104,21 @@ def get_hybrid_filtered_neighborhood(
                     continue
 
                 if node in structural_vectors and node in node_vectors:
-                    # Structural similarity
+                    # 1. Structural similarity
                     node_struct_vec = structural_vectors[node]
                     structural_sim = np.dot(seed_struct_vec, node_struct_vec) / (
                         np.linalg.norm(seed_struct_vec)
                         * np.linalg.norm(node_struct_vec)
                     )
 
-                    # Semantic similarity
+                    # 2. Semantic similarity
                     node_semantic_vec = node_vectors[node]
                     semantic_sim = np.dot(query_semantic_vec, node_semantic_vec) / (
                         np.linalg.norm(query_semantic_vec)
                         * np.linalg.norm(node_semantic_vec)
                     )
 
-                    # Combined filtering
+                    # 3. Combined filtering
                     if (
                         structural_sim >= min_structural_sim
                         and semantic_sim >= min_semantic_sim
@@ -168,7 +168,7 @@ def search_and_expand_hybrid_filtered(
     min_semantic_sim=0.6,
     structural_weight=0.5,
     alpha=0.7,
-    node_type="control",
+    node_type=None,
 ):
     """
     Two-stage search with HYBRID filtering (structural + semantic):
