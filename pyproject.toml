@@ -20,8 +20,8 @@ dependencies = [
     "scikit-learn>=1.7.2",
     "sentence-transformers>=5.1.1",
     "transformers==4.56.0",
-    "turingdb",
-    "turingdb-examples",
+    "turingdb==0.2.7",
+    "turingdb-examples==0.1.0",
 ]
 
 keywords = ["turingdb", "examples", "database"]
@@ -56,5 +56,4 @@ addopts = [
 ]
 
 [tool.uv.sources]
-turingdb = { path = "../turingdb-sdk-python", editable = true }
 turingdb-examples = { path = "../turingdb-examples" }
