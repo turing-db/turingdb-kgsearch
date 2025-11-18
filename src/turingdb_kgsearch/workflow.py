@@ -205,11 +205,11 @@ def search_and_expand_hybrid_filtered(
 
     semantic_results = hybrid_search(
         query=query,
-        node_vectors=node_vectors,
-        node_texts=node_texts,
         G=G,
-        sparse_vectors=sparse_vectors,
+        dense_node_vectors=node_vectors,
+        sparse_node_vectors=sparse_vectors,
         sparse_vectorizer=sparse_vectorizer,
+        node_texts=node_texts,
         model=model,
         k=k_search,
         alpha=alpha,
