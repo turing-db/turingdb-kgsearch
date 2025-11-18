@@ -222,11 +222,11 @@ exports/
 # HTML files in notebooks folder
 notebooks/**/*.html
 
-# Data folders anywhere in the project
-**/data/
+# # Data folders anywhere in the project
+# **/data/
 
-# Draft folders anywhere in the project
-**/draft/
+# # Draft folders anywhere in the project
+# **/draft/
 
 # Text files with 'prompt' in the name anywhere
 **/*prompt*.txt
