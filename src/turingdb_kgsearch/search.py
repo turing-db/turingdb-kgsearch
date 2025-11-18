@@ -50,17 +50,15 @@ def dense_search(query, node_vectors, node_texts, G, model, k=5, node_type=None)
     return results[:k]
 
 
-def sparse_search(
-    query, sparse_vectors, sparse_vectorizer, node_texts, G, k=5, node_type=None
-):
+def sparse_search(query, node_vectors, node_texts, vectorizer, G, k=5, node_type=None):
     """
     Search for nodes using sparse (keyword-based) vectors.
 
     Args:
         query: Natural language question or search term
-        sparse_vectors: Dictionary of {node_id: sparse_vector}
-        sparse_vectorizer: Fitted TfidfVectorizer for encoding queries
+        node_vectors: Dictionary of {node_id: sparse_vector}
         node_texts: Dictionary of {node_id: text}
+        vectorizer: Fitted TfidfVectorizer for encoding queries
         G: NetworkX graph
         k: Number of results to return
         node_type: Filter by node type ('control', 'topic', 'domain', or None for all)
@@ -68,15 +66,15 @@ def sparse_search(
     Returns:
         List of results with node info and similarity scores
     """
-    if not sparse_vectors:
+    if not node_vectors:
         return []
 
     # Encode query to sparse vector
-    query_sparse = sparse_vectorizer.transform([query])
+    query_sparse = vectorizer.transform([query])
 
     # Calculate similarity to all nodes
     results = []
-    for node_id, node_sparse in sparse_vectors.items():
+    for node_id, node_sparse in node_vectors.items():
         # Cosine similarity for sparse vectors
         similarity = cosine_similarity(query_sparse, node_sparse)[0][0]
 
@@ -115,11 +113,11 @@ def print_results(results):
 
 def hybrid_search(
     query,
-    node_vectors,
-    node_texts,
     G,
-    sparse_vectors,
+    dense_node_vectors,
+    sparse_node_vectors,
     sparse_vectorizer,
+    node_texts,
     model,
     k=5,
     alpha=0.7,
@@ -130,11 +128,11 @@ def hybrid_search(
 
     Args:
         query: Search query
-        node_vectors: Dictionary of dense vectors
-        node_texts: Dictionary of node texts
         G: NetworkX graph
-        sparse_vectors: Dictionary of sparse vectors
+        dense_node_vectors: Dictionary of dense vectors
+        sparse_node_vectors: Dictionary of sparse vectors
         sparse_vectorizer: TF-IDF vectorizer
+        node_texts: Dictionary of node texts (used by both dense and sparse)
         model: SentenceTransformer model
         k: Number of results
         alpha: Weight (1.0=dense only, 0.0=sparse only, 0.7=balanced)
@@ -144,15 +142,15 @@ def hybrid_search(
         List of results with combined scores
     """
 
-    # Get results from both methods (get more to ensure coverage)
+    # Get results from both methods
     dense_results = dense_search(
-        query, node_vectors, node_texts, G, model, k=k * 3, node_type=node_type
+        query, dense_node_vectors, node_texts, G, model, k=k * 3, node_type=node_type
     )
     sparse_results = sparse_search(
         query,
-        sparse_vectors,
-        sparse_vectorizer,
+        sparse_node_vectors,
         node_texts,
+        sparse_vectorizer,
         G,
         k=k * 3,
         node_type=node_type,
@@ -180,9 +178,11 @@ def hybrid_search(
 
     combined = []
     for node_id in all_nodes:
-        d_score = dense_norm.get(node_id, 0.0)
-        s_score = sparse_norm.get(node_id, 0.0)
-        final_score = alpha * d_score + (1 - alpha) * s_score
+        d_score = dense_scores.get(node_id, 0.0)
+        s_score = sparse_scores.get(node_id, 0.0)
+        d_score_norm = dense_norm.get(node_id, 0.0)
+        s_score_norm = sparse_norm.get(node_id, 0.0)
+        final_score = alpha * d_score_norm + (1 - alpha) * s_score_norm
 
         combined.append(
             {
@@ -190,7 +190,9 @@ def hybrid_search(
                 "similarity": final_score,
                 "dense_score": d_score,
                 "sparse_score": s_score,
-                "text": node_texts[node_id],
+                "dense_score_norm": d_score_norm,
+                "sparse_score_norm": s_score_norm,
+                "text": node_texts.get(node_id, ""),
                 "data": dict(G.nodes[node_id]),
             }
         )
@@ -215,25 +217,26 @@ def print_hybrid_results(results):
 
 def compare_search_methods(
     query,
-    node_vectors,
-    node_texts,
     G,
-    sparse_vectors,
+    dense_node_vectors,
+    sparse_node_vectors,
     sparse_vectorizer,
+    node_texts,
     model,
     k=5,
     alpha=0.7,
-    node_type="control",
+    node_type=None,
 ):
     """
     Compare dense, sparse, and hybrid search side-by-side.
 
     Args:
         query: Search query
-        node_vectors: Dense vectors
-        node_texts: Node texts
-        sparse_vectors: Sparse vectors
+        G: NetworkX graph
+        dense_node_vectors: Dictionary of dense vectors
+        sparse_node_vectors: Dictionary of sparse vectors
         sparse_vectorizer: TF-IDF vectorizer
+        node_texts: Dictionary of node texts (used by both dense and sparse)
         model: SentenceTransformer model
         k: Number of results
         alpha: Alpha for hybrid (default 0.7)
@@ -248,7 +251,7 @@ def compare_search_methods(
     print("\n1. DENSE ONLY (Semantic):")
     print("-" * 80)
     results_dense = dense_search(
-        query, node_vectors, node_texts, G, model, k, node_type
+        query, dense_node_vectors, node_texts, G, model, k, node_type
     )
     for i, r in enumerate(results_dense[:3], 1):
         print(f"{i}. {r['similarity']:.3f} | {r['text'][:100]}...")
@@ -257,7 +260,7 @@ def compare_search_methods(
     print("\n2. SPARSE ONLY (Keywords):")
     print("-" * 80)
     results_sparse = sparse_search(
-        query, sparse_vectors, sparse_vectorizer, node_texts, G, k, node_type
+        query, sparse_node_vectors, node_texts, sparse_vectorizer, G, k, node_type
     )
     for i, r in enumerate(results_sparse[:3], 1):
         print(f"{i}. {r['similarity']:.3f} | {r['text'][:100]}...")
@@ -267,11 +270,11 @@ def compare_search_methods(
     print("-" * 80)
     results_hybrid = hybrid_search(
         query,
-        node_vectors,
-        node_texts,
         G,
-        sparse_vectors,
+        dense_node_vectors,
+        sparse_node_vectors,
         sparse_vectorizer,
+        node_texts,
         model,
         k,
         alpha,
@@ -279,5 +282,5 @@ def compare_search_methods(
     )
     for i, r in enumerate(results_hybrid[:3], 1):
         print(
-            f"{i}. {r['similarity']:.3f} (D:{r['dense_score']:.2f}/S:{r['sparse_score']:.2f}) | {r['text'][:100]}..."
+            f"{i}. {r['similarity']:.3f} (raw: D:{r['dense_score']:.2f}/S:{r['sparse_score']:.2f}) | (norm: D:{r['dense_score_norm']:.2f}/S:{r['sparse_score_norm']:.2f}) | {r['text'][:100]}..."
         )

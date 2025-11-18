@@ -253,48 +253,61 @@ def build_smart_enriched_embeddings(G, model):
     return node_vectors, node_texts
 
 
-def build_sparse_embeddings(G, max_features=500, ngram_range=(1, 2)):
+def build_sparse_embeddings(G, node_texts=None, max_features=500, ngram_range=(1, 2)):
     """
     Build sparse (keyword-based) embeddings using TF-IDF.
 
     Args:
         G: NetworkX graph
+        node_texts: Dictionary of {node_id: text} from dense embeddings (optional)
+                   If None, extracts texts from graph attributes
         max_features: Maximum vocabulary size
         ngram_range: Tuple of (min_n, max_n) for n-grams
 
     Returns:
         Tuple of (sparse_vectors, node_texts, sparse_vectorizer)
         - sparse_vectors: Dictionary of {node_id: sparse_vector}
-        - node_texts: Dictionary of {node_id: text}
+        - node_texts: Dictionary of {node_id: text} (same as input if provided)
         - sparse_vectorizer: Fitted TfidfVectorizer (needed for queries)
+
+    Example:
+        # Use same texts as dense embeddings (recommended for hybrid search)
+        dense_vectors, node_texts = build_smart_enriched_embeddings(G, model)
+        sparse_vectors, _, vectorizer = build_sparse_embeddings(G, node_texts=node_texts)
+
+        # Or build from scratch (uses node attributes only)
+        sparse_vectors, node_texts, vectorizer = build_sparse_embeddings(G)
     """
     from sklearn.feature_extraction.text import TfidfVectorizer
 
     print("Building sparse index (TF-IDF)...")
 
-    # Extract text from graph (same as dense embeddings)
-    node_texts = {}
-    texts_to_encode = []
-    node_ids = []
+    # If node_texts not provided, extract from graph
+    if node_texts is None:
+        print("  No node_texts provided - extracting from graph attributes")
+        node_texts = {}
+        for node_id, data in G.nodes(data=True):
+            node_type = data.get("type", "")
 
-    for node_id, data in G.nodes(data=True):
-        node_type = data.get("type", "")
+            if node_type == "control":
+                text = data.get("statement", "")
+            elif node_type == "topic":
+                text = f"Topic: {data.get('name', '')}"
+            elif node_type == "domain":
+                text = f"Domain: {data.get('name', '')}"
+            elif node_type == "standard":
+                text = f"{data.get('standard', '')} {data.get('reference', '')}"
+            else:
+                text = str(node_id)
 
-        if node_type == "control":
-            text = data.get("statement", "")
-        elif node_type == "topic":
-            text = f"Topic: {data.get('name', '')}"
-        elif node_type == "domain":
-            text = f"Domain: {data.get('name', '')}"
-        elif node_type == "standard":
-            text = f"{data.get('standard', '')} {data.get('reference', '')}"
-        else:
-            text = str(node_id)
+            if text and text.strip():
+                node_texts[node_id] = text
+    else:
+        print("  Using provided node_texts (from dense embeddings)")
 
-        if text and text.strip():
-            texts_to_encode.append(text)
-            node_ids.append(node_id)
-            node_texts[node_id] = text
+    # Prepare texts for vectorization
+    node_ids = list(node_texts.keys())
+    texts_to_encode = [node_texts[nid] for nid in node_ids]
 
     # Create TF-IDF vectorizer
     sparse_vectorizer = TfidfVectorizer(
