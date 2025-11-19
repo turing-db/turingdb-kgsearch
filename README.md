@@ -28,6 +28,57 @@ KGSearch combines three complementary techniques:
 - Stage 1: Hybrid search finds semantically + keyword relevant nodes
 - Stage 2: Graph traversal filtered by structural AND semantic similarity
 
+## How This Differs from GraphRAG
+
+While both approaches combine graphs with retrieval-augmented generation (RAG), they solve different problems:
+
+### GraphRAG
+- **Use case**: Extract structure from unstructured text
+- **Approach**: LLM generates entity graph → builds community summaries → answers via hierarchical summarization
+- **Best for**: Large text corpora without existing structure (news articles, research papers, documents)
+- **Pre-computation**: Heavy (entity extraction + multi-level summaries)
+
+**Example**: "What are the main themes in 1M news articles?"
+
+### TuringDB KGSearch
+- **Use case**: Search existing knowledge graphs with semantic awareness
+- **Approach**: Hybrid search (semantic + keywords) → graph traversal → filter by structure + semantics → retrieve subgraph
+- **Best for**: Structured knowledge graphs (regulatory standards, ontologies, citation networks, knowledge bases)
+- **Pre-computation**: Light (embeddings only)
+
+**Example**: "Find data privacy controls and related requirements across ISO/NIST standards"
+
+### Key Differences
+
+| Aspect | GraphRAG | TuringDB KGSearch |
+|--------|-------------------|-------------------|
+| **Input** | Unstructured text | Existing knowledge graph |
+| **Graph creation** | LLM-generated | Pre-existing |
+| **Core technique** | Community detection + summarization | Hybrid search + Node2Vec filtering |
+| **Retrieval** | Pre-computed summaries | Dynamic subgraph extraction |
+| **Query types** | Global themes + local facts | Semantic + structural exploration |
+
+### When to Use Each
+
+**Use GraphRAG when**:
+- You have large unstructured text collections
+- You need to discover themes and patterns
+- You want to answer "global" questions about the corpus
+
+**Use TuringDB KGSearch when**:
+- You already have a knowledge graph
+- You need precise semantic + structural retrieval
+- You want to explore graph neighborhoods with relevance filtering
+- You need to constrain LLM context to specific subgraphs
+
+### Novel Contributions
+
+TuringDB KGSearch introduces:
+1. **Hybrid filtering**: Combines structural similarity (Node2Vec) with semantic relevance during graph traversal
+2. **Semantic drift prevention**: Ensures exploration stays on-topic via continuous query similarity checks
+3. **Multi-modal search**: Dense (semantic) + sparse (keyword) + structural (graph topology)
+4. **Flexible embeddings**: Node-only, context-enriched, or smart aggregation strategies
+
 ## Installation
 ```bash
 pip install turingdb-kgsearch
